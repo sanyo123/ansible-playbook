@@ -1,0 +1,76 @@
+---
+- hosts: all
+  vars:
+    remote_user: ronak
+  vars_prompt:
+    - name: username
+      prompt: Enter your Docker Hub username
+      private: false
+
+    - name: password
+      prompt: Enter your password
+      private: true
+
+  tasks:
+    - name: Install prerequisites for Docker repository
+      apt:
+        name:
+          [
+            "apt-transport-https",
+            "ca-certificates",
+            "curl",
+            "gnupg2",
+            "software-properties-common",
+          ]
+        update_cache: yes
+      become: true
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+      become: true
+
+    - name: Add Docker APT repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu   jammy stable
+      become: true
+
+    - name: Install Docker CE
+      apt:
+        name: ["docker-ce", "docker-ce-cli", "containerd.io"]
+        update_cache: yes
+      become: true
+
+    - name: Install prerequisites for docker-compose
+      apt:
+        name: ["python3-pip", "python3-setuptools", "virtualenv"]
+      become: true
+
+    - name: Install docker-compose
+      pip:
+        name: docker-compose
+
+    - name: Create "docker" group
+      group:
+        name: "docker"
+        state: present
+      become: true
+
+    - name: Add remote ubuntu user to docker group
+      user:
+        name: "{{ remote_user }}"
+        group: "docker"
+      become: true
+
+    - name: Login
+      docker_login:
+        username: "{{username}}"
+        password: "{{password}}"
+
+    - name: start nginx container
+      docker_container:
+        name: nginx-example-docker
+        image: nginx:latest
+        state: started
+        ports:
+          - "443:443"
